@@ -1,0 +1,68 @@
+# 1. Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hipotecario-app-sa
+  namespace: hipotecario-dev
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::674695457794:role/bcpl-iam-rol-dev-hitopolizascontables-eks-sa
+---
+# 2. Aplicación Validaciones PLD
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-validacionespld
+  namespace: hipotecario-dev
+  labels:
+    app: validacionespld
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: validacionespld
+  template:
+    metadata:
+      labels:
+        app: validacionespld
+    spec:
+      serviceAccountName: hipotecario-app-sa
+      # 💡 Nota: Se eliminó 'imagePullSecrets' porque EKS descarga de ECR de forma nativa mediante roles IAM.
+      containers:
+        - name: pld
+          # 👇 Tu nueva imagen de AWS ECR (Asegúrate de cambiar :latest por tu tag real si usas versionado)
+          image: 674695457794.dkr.ecr.us-east-1.amazonaws.com/bancoppel/validaciones-pld-hipotecario:latest
+          ports:
+            - containerPort: 8082
+          env:
+            # 1. Región obligatoria para el SDK
+            - name: AWS_REGION
+              value: "us-east-1"
+
+            # 3. Configuración de Spring (Corregido: eliminado el duplicado de 'value')
+            # NOTA: Mantén un ojo aquí si tu aplicación requería obligatoriamente el archivo local que acabamos de quitar.
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:aws-parameterstore:/hipotecario/kubernetes/validaciones/"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+# 3. Service for Internal Communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: validacionespld-service
+  namespace: hipotecario-dev
+spec:
+  selector:
+    app: validacionespld
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082

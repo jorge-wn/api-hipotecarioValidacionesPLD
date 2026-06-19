@@ -41,13 +41,6 @@ config.getBigquerytablaId());
 
 
 public String existeNombre(String rfc) {
-log.info("Consultando BigQuery para el nombre: " + rfc);
-log.info("transport options info:" + bigquery.getOptions().getTransportOptions().toString());
-
-// String query = String.format("SELECT puntualidad FROM %s WHERE
-
-// UPPER(TRIM(Nombre_Cliente)) like @nombre", tableName);
-
 String query = String.format("SELECT RespuestaCliente FROM %s WHERE UPPER(TRIM(RFC)) like @RFC", tableName);
 
 QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query)
@@ -201,32 +194,6 @@ return BigQueryOptions.newBuilder().setCredentials(credentials).setProjectId(pro
 } else {
 
 log.info("========Conexión a BigQuery sin proxy ========");
-
-
-
-/*
-
-* ============================================================ CAMBIO #4
-
-* ============================================================ CREAR
-
-* CREDENCIALES DESDE MEMORIA YA NO SE USA FileInputStream
-
-* ============================================================
-
-*/
-
-/* se comenta por cuestion de no tener acceso a ssm aws coppel */
-
-/*
-
-* GoogleCredentials credentialss = GoogleCredentials.fromStream( new
-
-* ByteArrayInputStream( credentialsPath.getBytes() ) );
-
-*/
-
-
 
 try (InputStream is = new ByteArrayInputStream(credentialsPath.getBytes(StandardCharsets.UTF_8))) {
 credentials = GoogleCredentials.fromStream(is);

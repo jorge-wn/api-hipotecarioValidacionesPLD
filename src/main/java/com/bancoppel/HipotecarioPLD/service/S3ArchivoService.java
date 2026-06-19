@@ -21,6 +21,9 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.bancoppel.HipotecarioPLD.Util.Currentyearmonth;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -29,6 +32,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import org.owasp.encoder.Encode;
 import com.bancoppel.HipotecarioPLD.Util.StringCleaner;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -41,26 +45,25 @@ public class S3ArchivoService {
     private final LambdaService lambdaservice;
     private final RutasRespuestaConfigAws rutasRespuestaConfig;
     private final Currentyearmonth  currentyearmonth;
-        private static final Set<String> resumenArchivos  =  Collections.synchronizedSet(new LinkedHashSet<>());
     
-    public S3ArchivoService(
+    private static final Set<String> resumenArchivos  =  Collections.synchronizedSet(new LinkedHashSet<>());
+    private static final Pattern ARCHIVO_PERMITIDO = Pattern.compile("^[A-Za-z0-9._-]+\\.txt$");
+  
+  
+    
+    
+        public S3ArchivoService(
             @Value("${aws.region}") String awsRegion,
             @Value("${app.temp.dir:/tmp/hipotecario}") String tempDir,
             @Value("${s3bucket}") String bucketBajada,
             @Value("${s3bucket}") String bucketSubida,
-           // @Value("${accesK}") String accessKey,
-           // @Value("${seK}") String secretKey,
+       
             LambdaService lambdaservice,
             RutasRespuestaConfigAws rutasRespuestaConfig,
             Currentyearmonth  currentyearmonth
             ) {
     	this.currentyearmonth = currentyearmonth;
-        //AwsBasicCredentials awsCredentials =     AwsBasicCredentials.create(accessKey, secretKey);
-      /*  this.s3Client = S3Client.builder()
-                .region(Region.of(awsRegion))
-                .credentialsProvider( StaticCredentialsProvider.create(awsCredentials))
-                .build();
-        */
+    
         // ==========================================
         this.s3Client = S3Client.builder()
                 .region(Region.of(awsRegion))
@@ -76,7 +79,7 @@ public class S3ArchivoService {
                 awsRegion, bucketBajada, bucketSubida);
     }
 
-    public Path descargarArchivo(String prefix, String nombreArchivo) {
+  /*  public Path descargarArchivo(String prefix, String nombreArchivo) {
         try {
             // Crear directorio temporal si no existe
             Files.createDirectories(Paths.get(tempDir));
@@ -84,6 +87,8 @@ public class S3ArchivoService {
             if (prefix == null || prefix.isEmpty()) {
                 throw new IllegalArgumentException("El prefix S3 está vacío");
             }
+            
+            
 
             // 🔹 Usar el prefix tal cual viene y concatenar el nombre del archivo
             String key = prefix.endsWith("/") ? prefix + nombreArchivo : prefix + "/" + nombreArchivo;
@@ -109,7 +114,70 @@ public class S3ArchivoService {
             throw new RuntimeException("Error descargando archivo desde S3", e);
         }
     }
-    
+    */
+        
+        public Path descargarArchivo(String prefix, String nombreArchivo) {
+            try {
+                Path baseDir = Paths.get(tempDir)
+                        .toAbsolutePath()
+                        .normalize();
+
+                Files.createDirectories(baseDir);
+
+                if (prefix == null || prefix.isBlank()) {
+                    throw new IllegalArgumentException("El prefix S3 está vacío");
+                }
+
+                if (nombreArchivo == null || nombreArchivo.isBlank()) {
+                    throw new SecurityException("Nombre de archivo vacío");
+                }
+
+                if (!ARCHIVO_PERMITIDO.matcher(nombreArchivo).matches()) {
+                    throw new SecurityException(
+                            "Nombre de archivo inválido");
+                }
+
+                String nombreSeguro = Paths.get(nombreArchivo)
+                        .getFileName()
+                        .toString();
+
+                Path destino = baseDir
+                        .resolve(nombreSeguro)
+                        .normalize();
+
+                if (!destino.startsWith(baseDir)) {
+                    throw new SecurityException(
+                            "Intento de Path Traversal detectado");
+                }
+
+                String key = prefix.endsWith("/")
+                        ? prefix + nombreSeguro
+                        : prefix + "/" + nombreSeguro;
+
+                log.info("Descargando archivo desde S3 | bucket={} | key={}",
+                        bucketBajada,
+                        key);
+
+                GetObjectRequest request = GetObjectRequest.builder()
+                        .bucket(bucketBajada)
+                        .key(key)
+                        .build();
+
+                try (InputStream in = s3Client.getObject(request)) {
+                    Files.copy(in,destino,StandardCopyOption.REPLACE_EXISTING);
+                }
+
+                log.info("Archivo descargado correctamente en {}",destino);
+
+                return destino;
+
+            } catch (Exception e) {
+                log.error("Error descargando archivo desde S3",e);
+                throw new RuntimeException("Error descargando archivo desde S3",e);
+            }
+        }
+        
+        
     // =========================================================
     // MÉTODO EXISTENTE – STREAMING (NO SE TOCA)
     // =========================================================
@@ -241,47 +309,32 @@ public class S3ArchivoService {
             log.info("Subiendo con keyFinal={}", keyFinal);
              
         
-         //copdigo temporal para validar que tiene el contenido de las validaciones
-         // 🔹 Leer el contenido del archivo antes de subirlo
-       /*     String nombreInseguro = archivoTmp.getFileName().toString();
-            String nombreLimpio = StringCleaner.cleanText(nombreInseguro).replace("/", "");
-            Path archivoSeguro = Path.of(System.getProperty("java.io.tmpdir"), nombreLimpio);
-
-            
-            
-         try {
-        	// Tu línea original ahora con el archivo seguro
-             List<String> lineas2 = Files.readAllLines(archivoSeguro, StandardCharsets.UTF_8);
-             
-        	 // List<String> lineas2 = Files.readAllLines(archivoTmp, StandardCharsets.UTF_8);
-             log.info("===== CONTENIDO DEL ARCHIVO ANTES DE SUBIR A S3 =====");
-             lineas2.forEach(line -> log.info(line));
-             log.info("=====================================================");
-         } catch (IOException e) {
-             log.error("Error leyendo el archivo temporal antes de subirlo", e);
-         }*/
+      
          
             ///aqui sube al s3 revisar los path 
             subirArchivo(archivoTmp, keyFinal);
      
             log.info("archivoTmp"+ archivoTmp +":"+ keyFinal);    
-            log.info("Archivo {} subido a S3 en s3://{}/{}",
-                    nombreArchivoSalida,bucketSubida,prefixDestino);
-           
+       
             // aqui va el cambio del path para la salida del SFTP
             String rutaBase = rutasRespuestaConfig.obtenerRutaSFTP(originador, Proceso);
 
-            log.info("ruta base: "+ rutaBase ); 
+       //     log.info("ruta base: "+ rutaBase ); 
             String rutaobsoluta = rutaBase +"/"+ currentyearmonth.anioMesActual() +"/" + nombreArchivoSalida;
             
+           
             LambdaResponseDTOAws lambdaResponse = lambdaservice.enviarResultado(rutaobsoluta, keyFinal);
+                     
             
         } catch (Exception e) {
           //  log.error("Error al generar o subir archivo TXT a S3", e);        	
             throw new RuntimeException("Error en el flujo de subir txt o enviar email", e);
-        } finally {
+        } 
+        finally {
+
             try {
                 Files.deleteIfExists(archivoTmp);
+              
             } catch (IOException ex) {
                 log.warn("No se pudo eliminar archivo temporal {}", archivoTmp);
             }
@@ -299,6 +352,7 @@ public class S3ArchivoService {
                 "=====================================\n";
 
         resumenArchivos.add(resumen);
+     
     }
     
     public String guardarResumenTXT(String keyS3) {
@@ -337,7 +391,8 @@ public class S3ArchivoService {
            return Encode.forHtml(resultado);
             //return resultado ;
 
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
 
             log.error("Error generando resumen PLD", e);
             return "ERROR";
@@ -351,4 +406,6 @@ public class S3ArchivoService {
     public void limpiarResumen() {
         resumenArchivos.clear();
     }
+  
+  
 }

@@ -17,10 +17,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter; 
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -33,12 +36,17 @@ public class ResultadoServiceAws {
     private final S3ArchivoService s3ArchivoService;
     private final LectorArchivoAws lectorArchivoAws;
     private final RutasRespuestaConfigAws rutasRespuestaConfig;
- 
+        
     // Control de archivos ya procesados
     private final ConcurrentMap<String, Boolean> archivosProcesados = new ConcurrentHashMap<>();
+    // Control de finalización de procesos
+    public final AtomicInteger procesosTerminados = new AtomicInteger(0);
+    public final AtomicBoolean todosCompletos = new AtomicBoolean(false);
+    private static final int TOTAL_PROCESOS = 6;
+    
+    
+    private static final Pattern ARCHIVO_PERMITIDO =Pattern.compile("^[A-Za-z0-9._-]+\\.txt$");
 
- //   @Async
-  //  public void procesarDesdeS3(ResultadoCargaDTOAws request) { 
     @Async
     public CompletableFuture<Void> procesarDesdeS3(ResultadoCargaDTOAws request) { 
     log.info("ProcesamientoHIPO | resultado={} | mensaje={} | Archivos = {}",
@@ -49,39 +57,77 @@ public class ResultadoServiceAws {
         
         if (listaArchivos == null || listaArchivos.isEmpty()) {
             log.warn("No se encontraron archivos procesados en la respuesta Lambda. Se generará archivo vacío.");
-            generarArchivoVacio(request); // 🔥 CAMBIO 2        
-            //return; // 🔥 CAMBIO 3: salir sin error
+            generarArchivoVacio(request); 
+                //cambio para contar si genero txt vacio
+                  int terminados =   procesosTerminados.incrementAndGet(); 
+              	  //contador de archivos generados  y subidos al sftp
+               
+                     
+                log.info("Procesos terminados {}/{}",terminados,TOTAL_PROCESOS);
+                if (terminados >= TOTAL_PROCESOS) {
+                    todosCompletos.set(true);
+                    log.info("TODOS LOS PROCESOS FINALIZARON");
+                }
             return CompletableFuture.completedFuture(null);
         }
 
-     // 1️⃣ Obtener nombre de archivo
+     // 1️ Obtener nombre de archivo
         String nombreArchivo = listaArchivos.get(0);
-        // Evitar reprocesamiento
+        
+        if (nombreArchivo == null || nombreArchivo.isBlank()) {
+            throw new SecurityException("Nombre de archivo vacío");
+        }
 
+        if (nombreArchivo.contains("..")
+                || nombreArchivo.contains("/")
+                || nombreArchivo.contains("\\")) {
+            throw new SecurityException(
+                    "Intento de Path Traversal detectado");
+        }
+
+        if (!ARCHIVO_PERMITIDO.matcher(nombreArchivo).matches()) {
+            throw new SecurityException(
+                    "Nombre de archivo inválido: " + nombreArchivo);
+        }
+        
+        // Evitar reprocesamiento
         if (archivosProcesados.putIfAbsent(nombreArchivo, Boolean.TRUE) != null) {
             log.info("Archivo {} ya fue procesado, se ignora", nombreArchivo);
            // return;
             return CompletableFuture.completedFuture(null);
         }
  
-        // 2️⃣ Normalizar ruta base (SIN slash inicial ni final)
+        // 2️ Normalizar ruta base (SIN slash inicial ni final)
         String rutaS3Base = normalizarRuta(request.getRutaS3());
         String rutaSftpBase = normalizarRuta(request.getRutaSftp());
         System.out.println("Ruta base S3={} | Ruta base SFTP={}"+ rutaS3Base +"|"+ rutaSftpBase);
  
-        // 3️⃣ Descargar archivo desde S3
+        // 3️ Descargar archivo desde S3
         Path archivoLocal = s3ArchivoService.descargarArchivo(rutaS3Base,nombreArchivo);
  
-        // 4️⃣ Procesar archivo (genera respuesta y la sube a S3)
-        lectorArchivoAws.procesarArchivo(archivoLocal, nombreArchivo, request);
+        // 4️ Procesar archivo (genera respuesta y la sube a S3)
+         //boolean completado =  lectorArchivoAws.procesarArchivo(archivoLocal, nombreArchivo, request);
+         boolean completado =  lectorArchivoAws.procesarArchivo( nombreArchivo, request);
+                   
+       	
+         if (completado) { 
+         //cambio para contar si genero txt vacio
+           int terminados =   procesosTerminados.incrementAndGet(); 
+       	  //contador de archivos generados  y subidos al sftp
         
+              
+         log.info("Procesos terminados {}/{}",terminados,TOTAL_PROCESOS);
+         if (terminados >= TOTAL_PROCESOS) {
+             todosCompletos.set(true);
+             log.info("TODOS LOS PROCESOS FINALIZARON");
+         }}
         return CompletableFuture.completedFuture(null);
     }
  
     // Nuevo método para generar archivo vacío
     private void generarArchivoVacio(ResultadoCargaDTOAws request) {
-        String anio = request.getRutaS3().split("/")[3];  // ejemplo 
-        String mes  = request.getRutaS3().split("/")[4];  // ejemplo
+        String anio = request.getRutaS3().split("/")[3]; 
+        String mes  = request.getRutaS3().split("/")[4];  
         try {
 
         	String fecha = LocalDateTime
@@ -138,6 +184,7 @@ public class ResultadoServiceAws {
             
             log.info("Archivo vacío generado y subido correctamente: {}", nombreArchivo);
             s3ArchivoService.agregarResumenArchivo("Archivo vacío generado y subido correctamente: " + nombreArchivo, 0, 0, 0);
+           
             
         } catch (Exception e) {
             log.error("Error generando archivo vacío", e);
@@ -166,6 +213,20 @@ public class ResultadoServiceAws {
                 .replaceAll("^/+", "")   // quitar slash inicial
                 .replaceAll("/+$", "");  // quitar slash final
     }
+    
+    public void reiniciarContador() {
+        procesosTerminados.set(0);
+        todosCompletos.set(false);
+    }
+
+    public boolean todosCompletos() {
+        return todosCompletos.get();
+    }
+
+    public int getProcesosTerminados() {
+        return procesosTerminados.get();
+    }
+  
   
 
 }

@@ -83,7 +83,7 @@ public class LambdaService {
 
         } catch (Exception e) {
             System.out.println("ERROR al imprimir JSON enviado a Lambda");
-            System.out.println("Ocurrió un error inesperado al ejecutar la Lambda de PLD: " + e.getMessage()+ "#####"+ e);
+           // System.out.println("Ocurrió un error inesperado al ejecutar la Lambda de PLD: " + e.getMessage()+ "#####"+ e);
             //e.printStackTrace();
         }
 
@@ -161,8 +161,6 @@ public class LambdaService {
                 return response;
         } catch (Exception e) {
             System.out.println("ERROR al imprimir JSON respuesta de Lambda");
-            System.out.println("Ocurrió un error inesperado al ejecutar la Lambda de PLD: " + e.getMessage()+ "#####"+ e);
-          //  e.printStackTrace();
         }  
         return null;
     }

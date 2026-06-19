@@ -48,6 +48,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.JDBCConnectionException;
@@ -89,10 +90,13 @@ public class LectorArchivoAws {
     private final AtomicInteger registrosProcesadosOk = new AtomicInteger(0);
     private final AtomicInteger registrosConErrorEstructura = new AtomicInteger(0);
     private final List<String> currentFileErrorLines = Collections.synchronizedList(new ArrayList<>()); // Lista de errores para el archivo actual
-
+   
     // Definir el tamaño del pool de hilos para el procesamiento de líneas
     private final ExecutorService lineProcessingExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+   	private static final Path BASE_DIR = Paths.get("/tmp/hipotecario").toAbsolutePath().normalize();
 
+  
+    
 
     public String getProcessingSummary(String fileName) {   	
     	int registrosEror = totalRegistrosProcesados.get() -  registrosProcesadosOk.get();    	
@@ -102,14 +106,15 @@ public class LectorArchivoAws {
     	           " Registros Con error: "+ registrosEror ;
     }
     /////aws
-    public void procesarArchivo(
-            Path archivoLocal1,
-            String nombreArchivo,
-            ResultadoCargaDTOAws request
-    ) {
-        log.info("Iniciando el procesamiento del archivo: {}", nombreArchivo);
-        long startTime = System.currentTimeMillis();
-      	String fecha = LocalDateTime
+    //public void procesarArchivo(Path archivoLocal1,String nombreArchivo,ResultadoCargaDTOAws request) {
+    //public boolean procesarArchivo(Path archivoLocal1,String nombreArchivo,ResultadoCargaDTOAws request) {
+        public boolean procesarArchivo(String nombreArchivo,ResultadoCargaDTOAws request) {
+       	
+    	log.info("Iniciando el procesamiento del archivo: {}", nombreArchivo);
+        
+    	long startTime = System.currentTimeMillis();
+      	
+        String fecha = LocalDateTime
     	        .now(ZoneId.of(timezone))
     	        .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String ipAddress = "";
@@ -127,28 +132,37 @@ public class LectorArchivoAws {
         
         List<String> lineasFinales = new ArrayList<>();
         
-        
-
-     // ======================================================================
-        // 1. Tomamos la ruta absoluta original que generó el S3ArchivoService
-        Path archivoAbsoluto = archivoLocal1.toAbsolutePath().normalize();
-        
-        // 2. Validamos de forma segura que pertenezca al directorio /tmp permitido
-        Path directorioPermitido = Path.of("/tmp").toAbsolutePath().normalize();
-        if (!archivoAbsoluto.startsWith(directorioPermitido)) {
-            throw new SecurityException("¡Intento de Path Traversal detectado!");
-        }
-        Path archivoLocal = archivoAbsoluto;
+        Path archivoLocal = null;
         
         try {
-            // Leer todas las líneas no vacías del archivo S3 descargado
-            List<String> registrosTotales = Files.readAllLines(archivoLocal)
-                    .stream()
-                    .filter(linea -> linea != null && !linea.trim().isEmpty())
-                    .collect(Collectors.toList());
-            
-            
-            
+     // ======================================================================
+        	// 1. Construir la ruta inicial
+        	archivoLocal = BASE_DIR.resolve(nombreArchivo).normalize();
+
+        	// 2. Sobreescribir "archivoLocal" con la ruta canónica segura
+        	String canonicalPathStr = archivoLocal.toFile().getCanonicalPath();
+        	archivoLocal = Paths.get(canonicalPathStr);
+
+        	// 3. Validar que siga dentro del directorio permitido (Usando la ruta canónica)
+        	if (!archivoLocal.startsWith(BASE_DIR.toRealPath())) {
+        	    throw new SecurityException("Path Traversal detectado");
+        	}
+
+        	// 4. Validar que exista y sea un archivo regular
+        	if (!Files.exists(archivoLocal)) {
+        	    throw new SecurityException("El archivo no existe");
+        	}
+
+        	if (!Files.isRegularFile(archivoLocal)) {
+        	    throw new SecurityException("Archivo inválido");
+        	}
+
+        	// 5. Leer el archivo usando la variable unificada
+        	List<String> registrosTotales = Files.readAllLines(archivoLocal)
+        	        .stream()
+        	        .filter(linea -> linea != null && !linea.trim().isEmpty())
+        	        .collect(Collectors.toList());
+       
             // Validación de estructura y procesamiento según tipo de archivo
             if (nombreArchivo.startsWith("CHIPO_PLD_LAYOUT_KREDI")) {
             	originador ="KREDI";
@@ -235,10 +249,20 @@ public class LectorArchivoAws {
             MDC.put("elapsedTime", String.valueOf(endTime - startTime));
             log.info("Procesamiento completo del archivo {} en {} ms", nombreArchivor, (endTime - startTime));
 
+            return true;
         } catch (Exception e) {
-            log.error("Error procesando archivo {}", nombreArchivo, e);
-            throw new RuntimeException("Error en procesamiento de archivo PLD/SIC", e);
+        	return false;
+        	//System.out.println("Error procesando archivo" + nombreArchivo + e);
+          //  throw new RuntimeException("Error en procesamiento de archivo PLD/SIC", e);
         } finally {
+            try {
+                if (archivoLocal != null) {
+                    Files.deleteIfExists(archivoLocal);
+                }
+            } catch (IOException e) {
+                log.warn("No fue posible eliminar el archivo temporal: {}", archivoLocal);
+            }
+
             MDC.clear();
         }
     }
@@ -323,7 +347,7 @@ public class LectorArchivoAws {
                         }
                         String jsonString = mapper.writeValueAsString(jsonMap);
                         String jsonStringSeguro = sanitizeLog.sanitizeForLog(jsonString);
-                        log.debug("LOG: Enviando JSON al WS: {}", jsonStringSeguro);
+
 
                         boolean match = false;
                         try {
@@ -379,7 +403,7 @@ public class LectorArchivoAws {
                             boolean match = false;
                             try {
                             	String jsonMapSeguro = sanitizeLog.sanitizeForLog(jsonString);
-                            	log.debug("LOG: Enviando JSON al WS: {}", jsonMapSeguro);
+
 
                             	  try {
                             	match = externaServiceApache.validarRegistroNameMatchingHttpClient(jsonMap);//version final
@@ -454,7 +478,7 @@ public class LectorArchivoAws {
      
                     lineasProcesadasSincronizadas.add(lineaConRespuesta);
                     String lineaConRespuestaSeguro = sanitizeLog.sanitizeForLog(lineaConRespuesta);
-                    log.debug("LOG: Línea PLD procesada: {}", lineaConRespuestaSeguro);
+                  
                        
                     totalProcesados.incrementAndGet();
                     procesadosOk.incrementAndGet();
@@ -484,23 +508,27 @@ public class LectorArchivoAws {
         // Guardar bitácora final
 try {
         SaveBitacora(nombreArchivo, "Procesado", total, LocalDateTime.now(), ok, errores);
-}
-catch (Exception e) {
+                }
+   catch (Exception e) {
 	log.error("Error al guardar bitacora :"+ e.getMessage());					
-}        
+             }
+
         long endTime = System.currentTimeMillis();
         MDC.put("elapsedTime", String.valueOf(endTime - startTime));
         MDC.remove("method");
      
+    
         s3archivoservice.agregarResumenArchivo(
                 nuevoNombreArchivo,
                 total,
                 ok,
                 errores
         );
-        
+      
         return new ArrayList<>(lineasProcesadasSincronizadas);
-    }   
+    }
+      
+    	
 /*procesa los archivos de puntualidad coppel*/
     	private List<String> procesarSICFile(String rutaArchivo, List<String> registrosTotales) throws IOException {
         MDC.put("method", "procesarSICFile");
@@ -643,7 +671,7 @@ catch (Exception e) {
        
      //guarda resumen de archivo 
      s3archivoservice.agregarResumenArchivo(nuevoNombreArchivo,total,ok,errores);
-     
+  
        // return new String [] {nuevoNombreArchivo,resumen};
         return new ArrayList<>(lineasProcesadasSincronizadas);
     }
@@ -680,6 +708,7 @@ catch (Exception e) {
 
     private int contarErroresEstructura(Path archivoPath, Pattern pattern, String nombreArchivo) throws IOException {
         AtomicInteger errores = new AtomicInteger(0);
+        
         
         File inputFile = new File(archivoPath.toString());
         String canonicalPath = inputFile.getCanonicalPath();
@@ -803,7 +832,7 @@ catch (Exception e) {
         pepRequest.put("pnumcte", pnumcte);
         pepRequest.put("pnum_direc", pnumDirec);
 
-        log.debug("LOG: Enviando JSON al WS de PEPs: {}", mapper.writeValueAsString(pepRequest));
+      
         String vcodretPep = webServiceClient.validarPEP(pepRequest);
         log.debug("LOG: Respuesta del WS de PEPs: {}", vcodretPep);
 
@@ -975,4 +1004,8 @@ catch (Exception e) {
             log.error("Error guardando resumen", e);
         }
     }
+    
+    
+   
+   
 }

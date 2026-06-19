@@ -81,7 +81,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
-            <version>6.2.18</version>
+            <version>6.2.19</version>
         </dependency>
             
         <dependency>
@@ -93,7 +93,17 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
-            <version>6.2.18</version>
+            <version>6.2.19</version>
+        </dependency>
+             <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>6.2.19</version>
+        </dependency>
+            <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>6.2.19</version>
         </dependency>
         
         <dependency>
@@ -130,11 +140,7 @@
             <artifactId>gson</artifactId>
             <version>2.13.1</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <version>6.2.18</version>
-        </dependency>
+   
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
@@ -145,11 +151,7 @@
             <artifactId>commons-lang3</artifactId>
             <version>3.18.0</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>6.2.18</version>
-        </dependency>
+    
        
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -309,16 +311,50 @@
                 <artifactId>netty-codec-http</artifactId>
                 <version>4.1.134.Final</version>
             </dependency>
+            
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-codec-http2</artifactId>
-                <version>4.1.134.Final</version>
+                <version>4.1.135.Final</version>
             </dependency>
+            
+           
             <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-handler</artifactId>
-                <version>4.1.134.Final</version>
-            </dependency>
+    		<groupId>io.netty</groupId>
+		    <artifactId>netty-handler</artifactId>
+    		<version>4.1.135.Final</version>
+		    <scope>compile</scope>
+			</dependency>
+            
+            <dependency>
+    <groupId>io.netty</groupId>
+    <artifactId>netty-handler-proxy</artifactId>
+    <version>4.1.134.Final</version>
+    <scope>compile</scope>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-expression</artifactId>
+    <version>6.2.19</version>
+    <scope>compile</scope>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework.data</groupId>
+    <artifactId>spring-data-commons</artifactId>
+    <version>3.5.12</version>
+    <scope>compile</scope>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-webflux</artifactId>
+    <version>6.2.19</version>
+    <scope>compile</scope>
+</dependency>
+
+
 
      <!-- correcion de vulnerabilidades--> 
         
