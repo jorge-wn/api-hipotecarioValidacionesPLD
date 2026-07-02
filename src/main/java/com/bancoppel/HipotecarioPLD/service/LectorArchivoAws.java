@@ -27,11 +27,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -307,6 +306,8 @@ public class LectorArchivoAws {
                     	String lineaSeguro = sanitizeLog.sanitizeForLog(linea);
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERROR, lineaSeguro);
                         lineaConRespuesta = linea + "|9|9|9|I";
+                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
+                   
                         try {
                         	SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",   String.valueOf(numeroLinea), LocalDateTime.now());
                      s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
@@ -598,6 +599,9 @@ try {
                     	 
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERRORSIC, lineaSeguro);
                         lineaConRespuesta = linea1 + "|9";
+                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
+                        log.debug(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
+                       
                         try {
                         SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",  String.valueOf(numeroLinea), LocalDateTime.now());
                         s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
