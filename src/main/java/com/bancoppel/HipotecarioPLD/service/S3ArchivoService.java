@@ -34,6 +34,10 @@ import org.owasp.encoder.Encode;
 import com.bancoppel.HipotecarioPLD.Util.StringCleaner;
 import java.util.regex.Pattern;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+
+
 @Service
 @Slf4j
 public class S3ArchivoService {
@@ -48,7 +52,8 @@ public class S3ArchivoService {
     
     private static final Set<String> resumenArchivos  =  Collections.synchronizedSet(new LinkedHashSet<>());
     private static final Pattern ARCHIVO_PERMITIDO = Pattern.compile("^[A-Za-z0-9._-]+\\.txt$");
-  
+  private static final Map<String, List<String>> detalleErrores =
+        new ConcurrentHashMap<>();
   
     
     
@@ -342,18 +347,26 @@ public class S3ArchivoService {
     }
     
     
-    public void agregarResumenArchivo(String nombreArchivo, int total, int ok, int errores) {
+   public void agregarResumenArchivo(String nombreArchivo,
+                                  int total,
+                                  int ok,
+                                  int errores) {
+    StringBuilder resumen = new StringBuilder();
 
-        String resumen =
-                "Archivo: " + nombreArchivo + "\n" +
-                "Total registros: " + total + "\n" +
-                "Procesados OK: " + ok + "\n" +
-                "Con error: " + errores + "\n" +
-                "=====================================\n";
+    resumen.append("Archivo: ").append(nombreArchivo).append("\n");
+    resumen.append("Total registros: ").append(total).append("\n");
+    resumen.append("Procesados OK: ").append(ok).append("\n");
+    resumen.append("Con error: ").append(errores).append("\n");
+   List<String> erroresArchivo = detalleErrores.remove(nombreArchivo);
 
-        resumenArchivos.add(resumen);
-     
+   if (erroresArchivo != null) {
+    for (String error : erroresArchivo) {
+        resumen.append(error).append("\n");
     }
+}
+    resumen.append("=====================================\n");
+    resumenArchivos.add(resumen.toString());
+}
     
     public String guardarResumenTXT(String keyS3) {
 
@@ -405,7 +418,12 @@ public class S3ArchivoService {
     
     public void limpiarResumen() {
         resumenArchivos.clear();
+         detalleErrores.clear();
     }
-  
+
+ public void agregarDetalleError(String archivo,int linea,String descripcion) {
+    detalleErrores.computeIfAbsent(archivo,k -> Collections.synchronizedList(new ArrayList<>()))
+            .add("Linea: " + linea + " - " + descripcion);
+} 
   
 }

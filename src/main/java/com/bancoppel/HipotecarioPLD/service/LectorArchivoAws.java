@@ -197,6 +197,7 @@ public class LectorArchivoAws {
             } else {
                 log.warn("LOG: Nombre de archivo no reconocido: {}", nombreArchivo);
                 SaveBitacora(nombreArchivo, "Error archivo no reconocido", registrosTotales.size(), LocalDateTime.now(), 0, 0);
+           
             }
             ///Logica para poner nombre de los archivos de respuesta///
             if ("YAVE".equals(originador) && "PLD".equals(Proceso)) {
@@ -217,25 +218,25 @@ public class LectorArchivoAws {
             else if ("BANCOPPEL".equals(originador) && "SIC".equals(Proceso)) {
                 nombreArchivor = "CHIPO_VALIDACIONCLIENTE_LAYOUT_SIC_RESPUESTA_BANCOPPEL_" + fecha + ".txt";
             }
-         // 1️⃣ Obtener ruta base desde properties
+         // 1️ Obtener ruta base desde properties
             System.out.println("originador"+ originador);
             System.out.println("Proceso"+ Proceso);     
             String rutaBase = rutasRespuestaConfig.obtenerRutaS3(originador, Proceso);
-            // 2️⃣ Limpiar posibles slashes
+            // 2 Limpiar posibles slashes
             System.out.println("rutaBase: "+ rutaBase);  
             rutaBase = rutaBase.replaceAll("^/+", "").replaceAll("/+$", "");
             System.out.println("rutaBase: "+ rutaBase);
-            // 3️⃣ Extraer año y mes desde el archivo original o request
+            // 3 Extraer año y mes desde el archivo original o request
             String anio = request.getRutaS3().split("/")[3];  // ejemplo 
             String mes  = request.getRutaS3().split("/")[4];  // ejemplo
-               // 4️⃣ Construir ruta final correcta
+               // 4 Construir ruta final correcta
             String prefixDestinoCompleto = rutaBase+ "/" + anio + "/" + mes;
             
             System.out.println("PrefixDestino FINAL = {}"+ prefixDestinoCompleto);
             System.out.println("año "+ "'"+anio+ "'");
             System.out.println("Mes "+ "'"+ mes+"'");
              
-            // 5️⃣ Subir a S3 con ruta completa
+            // 5️ Subir a S3 con ruta completa
 			s3archivoservice.generarYSubirRespuestaS3(
                     nombreArchivor,
                     lineasFinales,
@@ -308,6 +309,7 @@ public class LectorArchivoAws {
                         lineaConRespuesta = linea + "|9|9|9|I";
                         try {
                         	SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",   String.valueOf(numeroLinea), LocalDateTime.now());
+                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
                         }
                         catch (Exception e) {
 							log.error("Error al guardar bitacora detalle:"+ e.getMessage());					
@@ -363,6 +365,17 @@ public class LectorArchivoAws {
                                 lineasProcesadasSincronizadas.add(lineaConRespuesta);
                                 erroresEstructura.incrementAndGet();
                                 SaveBitacoraDetalle(nombreArchivo, "Error servicio name matching",   String.valueOf(numeroLinea), LocalDateTime.now());
+                              
+                              String descripcion = "Error Name Matching";
+if (ex instanceof HttpStatusCodeException http) {
+
+    descripcion = "Error "
+            + http.getStatusCode().value()
+            + " Name Matching";
+}
+
+s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,descripcion);
+
                                 return lineaConRespuesta;  
                       	  }
 
@@ -418,12 +431,30 @@ public class LectorArchivoAws {
                                       lineasProcesadasSincronizadas.add(lineaConRespuesta);
                                       erroresEstructura.incrementAndGet();
                                       SaveBitacoraDetalle(nombreArchivo, "Error servicio name matching",   String.valueOf(numeroLinea), LocalDateTime.now());
+                                      String descripcion = "servicio name matching";
+
+if (ex instanceof HttpStatusCodeException http) {
+    descripcion = "Error "
+            + http.getStatusCode().value()
+            + " Name Matching";
+}
+s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,descripcion);
+
+
                                       return lineaConRespuesta;  
                             	  }
                             	
                             } catch (Exception ex) {
                                 log.error("Error de conexión al WS de Name Matching: {}", ex.getMessage());
-                               
+                                String descripcion = "servicio name matching";
+
+if (ex instanceof HttpStatusCodeException http) {
+    descripcion = "Error "
+            + http.getStatusCode().value()
+            + " Name Matching";
+}
+s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,descripcion);
+
                                 try {
                                 SaveBitacoraDetalle(nombreArchivo, "Fallo conexión WS NameMatching",  String.valueOf(numeroLinea), LocalDateTime.now());
                                 }
@@ -569,6 +600,7 @@ try {
                         lineaConRespuesta = linea1 + "|9";
                         try {
                         SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",  String.valueOf(numeroLinea), LocalDateTime.now());
+                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
                         }
                         catch (Exception e) {
 							log.error("Error al guardar bitacora detalle:"+ e.getMessage());					
@@ -641,6 +673,7 @@ try {
                     currentFileErrorLines.add(linea + " | Error: " + e.getMessage());                   
                     try {
                     SaveBitacoraDetalle(nombreArchivo, "Error Procesamiento SIC",String.valueOf(numeroLinea), LocalDateTime.now());
+                   s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error " + e.getCode() + " BigQuery");
                     }
                     catch (Exception q) {
 						log.error("Error al guardar bitacora detalle:"+ q.getMessage());					
@@ -737,6 +770,7 @@ try {
                     errores.incrementAndGet();
                     try {
                     SaveBitacoraDetalle(nombreArchivo, "Error de Estructura", numLinea, LocalDateTime.now());
+                   s3archivoservice.agregarDetalleError(nombreArchivo,Integer.parseInt(linea),"Error de estructura");
                     }
                     catch (Exception e) {
 						log.error("Error al guardar bitacora detalle:"+ e.getMessage());					
@@ -1015,8 +1049,5 @@ try {
             log.error("Error guardando resumen", e);
         }
     }
-    
-    
-   
    
 }
