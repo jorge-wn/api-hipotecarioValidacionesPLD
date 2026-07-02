@@ -64,7 +64,7 @@ import com.bancoppel.HipotecarioPLD.config.RutasRespuestaConfigAws;
 import com.bancoppel.HipotecarioPLD.service.S3ArchivoService;
 
 @Service
-@Slf4j
+//@Slf4j
 @RequiredArgsConstructor
 public class LectorArchivoAws {
 
@@ -717,7 +717,7 @@ try {
 
     private int contarErroresEstructura(Path archivoPath, Pattern pattern, String nombreArchivo) throws IOException {
         AtomicInteger errores = new AtomicInteger(0);
-        
+        int numeroLinea = 0;
         
         File inputFile = new File(archivoPath.toString());
         String canonicalPath = inputFile.getCanonicalPath();
@@ -729,12 +729,14 @@ try {
         
         List<Future<?>> futures = new ArrayList<>();
         for (String linea : lineas) {
+            numeroLinea = +1;
+            String numLinea= String.valueOf(numeroLinea);
             futures.add(lineProcessingExecutor.submit(() -> {
                 Matcher matcher = pattern.matcher(linea);
                 if (!matcher.matches()) {
                     errores.incrementAndGet();
                     try {
-                    SaveBitacoraDetalle(nombreArchivo, "Error de Estructura", linea, LocalDateTime.now());
+                    SaveBitacoraDetalle(nombreArchivo, "Error de Estructura", numLinea, LocalDateTime.now());
                     }
                     catch (Exception e) {
 						log.error("Error al guardar bitacora detalle:"+ e.getMessage());					
