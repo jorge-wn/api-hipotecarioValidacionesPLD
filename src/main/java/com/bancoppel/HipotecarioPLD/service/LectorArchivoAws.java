@@ -107,10 +107,8 @@ public class LectorArchivoAws {
     /////aws
     //public void procesarArchivo(Path archivoLocal1,String nombreArchivo,ResultadoCargaDTOAws request) {
     //public boolean procesarArchivo(Path archivoLocal1,String nombreArchivo,ResultadoCargaDTOAws request) {
-        public boolean procesarArchivo(String nombreArchivo,ResultadoCargaDTOAws request) {
-       	
+        public boolean procesarArchivo(String nombreArchivo,ResultadoCargaDTOAws request) {      	
     	log.info("Iniciando el procesamiento del archivo: {}", nombreArchivo);
-        
     	long startTime = System.currentTimeMillis();
       	
         String fecha = LocalDateTime
@@ -306,11 +304,11 @@ public class LectorArchivoAws {
                     	String lineaSeguro = sanitizeLog.sanitizeForLog(linea);
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERROR, lineaSeguro);
                         lineaConRespuesta = linea + "|9|9|9|I";
-                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
+                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");
                    
                         try {
                         	SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",   String.valueOf(numeroLinea), LocalDateTime.now());
-                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
+                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");
                         }
                         catch (Exception e) {
 							log.error("Error al guardar bitacora detalle:"+ e.getMessage());					
@@ -599,12 +597,12 @@ try {
                     	 
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERRORSIC, lineaSeguro);
                         lineaConRespuesta = linea1 + "|9";
-                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
+                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error Caracteres Especiales");
                         log.debug(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
                        
                         try {
                         SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",  String.valueOf(numeroLinea), LocalDateTime.now());
-                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
+                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error Caracteres Especiales");
                         }
                         catch (Exception e) {
 							log.error("Error al guardar bitacora detalle:"+ e.getMessage());					
@@ -677,7 +675,7 @@ try {
                     currentFileErrorLines.add(linea + " | Error: " + e.getMessage());                   
                     try {
                     SaveBitacoraDetalle(nombreArchivo, "Error Procesamiento SIC",String.valueOf(numeroLinea), LocalDateTime.now());
-                   s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error " + e.getCode() + " BigQuery");
+                    s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error " + e.getCode() + " BigQuery");
                     }
                     catch (Exception q) {
 						log.error("Error al guardar bitacora detalle:"+ q.getMessage());					

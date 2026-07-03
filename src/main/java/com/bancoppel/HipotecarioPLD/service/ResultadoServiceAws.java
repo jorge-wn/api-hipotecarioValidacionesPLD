@@ -91,11 +91,11 @@ public class ResultadoServiceAws {
         }
         
         // Evitar reprocesamiento
-        if (archivosProcesados.putIfAbsent(nombreArchivo, Boolean.TRUE) != null) {
+        /* if (archivosProcesados.putIfAbsent(nombreArchivo, Boolean.TRUE) != null) {
             log.info("Archivo {} ya fue procesado, se ignora", nombreArchivo);
            // return;
             return CompletableFuture.completedFuture(null);
-        }
+        }*/
  
         // 2️ Normalizar ruta base (SIN slash inicial ni final)
         String rutaS3Base = normalizarRuta(request.getRutaS3());
