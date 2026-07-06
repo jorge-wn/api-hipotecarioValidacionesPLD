@@ -15,10 +15,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter; 
@@ -43,9 +45,12 @@ public class ResultadoServiceAws {
     public final AtomicInteger procesosTerminados = new AtomicInteger(0);
     public final AtomicBoolean todosCompletos = new AtomicBoolean(false);
     private static final int TOTAL_PROCESOS = 6;
-    
-    
+
     private static final Pattern ARCHIVO_PERMITIDO =Pattern.compile("^[A-Za-z0-9._-]+\\.txt$");
+    private final AtomicBoolean tieneErrores = new AtomicBoolean(false);
+    private final ConcurrentMap<String, String> erroresProcesos = new ConcurrentHashMap<>();
+
+
 
     @Async
     public CompletableFuture<Void> procesarDesdeS3(ResultadoCargaDTOAws request) { 
@@ -109,7 +114,9 @@ public class ResultadoServiceAws {
          //boolean completado =  lectorArchivoAws.procesarArchivo(archivoLocal, nombreArchivo, request);
          boolean completado =  lectorArchivoAws.procesarArchivo( nombreArchivo, request);
                    
-       	
+       	if (!completado) {
+    registrarError(nombreArchivo, "Fallo en procesamiento del archivo o API retornó error");
+}
          if (completado) { 
          //cambio para contar si genero txt vacio
            int terminados =   procesosTerminados.incrementAndGet(); 
@@ -123,6 +130,7 @@ public class ResultadoServiceAws {
          }}
         return CompletableFuture.completedFuture(null);
     }
+    
  
     // Nuevo método para generar archivo vacío
     private void generarArchivoVacio(ResultadoCargaDTOAws request) {
@@ -217,6 +225,9 @@ public class ResultadoServiceAws {
     public void reiniciarContador() {
         procesosTerminados.set(0);
         todosCompletos.set(false);
+
+         tieneErrores.set(false);
+    erroresProcesos.clear();
     }
 
     public boolean todosCompletos() {
@@ -227,7 +238,19 @@ public class ResultadoServiceAws {
         return procesosTerminados.get();
     }
   
-  
+  public void registrarError(String proceso, String mensaje) {
+    tieneErrores.set(true);
+    erroresProcesos.put(proceso, mensaje);
+    log.error("Proceso {} marcado con error: {}", proceso, mensaje);
+}
+
+public boolean tieneErrores() {
+    return tieneErrores.get();
+}
+
+public Map<String, String> obtenerErrores() {
+    return erroresProcesos;
+}
 
 }
  
