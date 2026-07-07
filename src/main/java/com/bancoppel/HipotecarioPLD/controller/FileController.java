@@ -6,8 +6,7 @@ import com.bancoppel.HipotecarioPLD.dto.LambdaResponseDTOAws;
 import com.bancoppel.HipotecarioPLD.dto.ResultadoCargaDTOAws;
 import com.bancoppel.HipotecarioPLD.config.*;
 import com.bancoppel.HipotecarioPLD.service.*;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -35,10 +34,10 @@ public class FileController {
     private final S3ArchivoService s3archivoservice;
     private final Currentyearmonth currentyearmonth;
     private final LectorArchivoAws lectorarchivoaws;
+    public boolean CodigoEstatusEstructuraMalfomada = false;
     
     
     
-
     @Autowired
     public FileController(
     		Currentyearmonth currentyearmonth,
@@ -74,28 +73,49 @@ public class FileController {
         procesos.add(ejecutar(config.sftpSICYave,config.s3SICYave));
         procesos.add(ejecutar(config.sftpPLDBancoppel,config.s3PLDBancoppel));
         procesos.add(ejecutar(config.sftpSICBancoppel,config.s3SICBancoppel));
-
-        CompletableFuture.allOf(procesos.toArray(new CompletableFuture[0])).join();
-            
-        try {
-            while (!resultadoServiceAws.todosCompletos()) {
-                log.info("Esperando procesos: {}/6",resultadoServiceAws.getProcesosTerminados());
-                Thread.sleep(500);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Proceso interrumpido esperando finalización",e);
-        }
         
      String keyS3 =  config.getRutaArchivoResumen()
              + "/resumen_procesamientoPLD_"
              + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmm"))
              + ".txt";    
+  
+        try {
+        CompletableFuture.allOf(procesos.toArray(new CompletableFuture[0])).join();     
+      
+            while (!resultadoServiceAws.todosCompletos()) {
+                log.info("Esperando procesos: {}/6",resultadoServiceAws.getProcesosTerminados());
+                Thread.sleep(500);
+            }
      
       String resumen = s3archivoservice.guardarResumenTXT(keyS3);
+        
+      if (resultadoServiceAws.tieneErrores()) { 
+            emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.PARTIAL_CONTENT.value()), keyS3);
+            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(resumen);
+        }
+
+        if (CodigoEstatusEstructuraMalfomada == true) {            
+            emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.BAD_REQUEST.value()), keyS3);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resumen);
+        }else
+  {
       emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.OK.value()),keyS3);
       log.info("Culmino el proceso de validación PLD/Puntualidad Coppel");
-      return ResponseEntity.ok(resumen);
+}
+      return ResponseEntity.ok(resumen);    
+
+     } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        log.error("Proceso interrumpido", e);
+        emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), "Error: Proceso interrumpido");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Proceso interrumpido");
+        
+    } catch (Exception e) {
+        log.error("Error crítico en el procesamiento PLD", e);
+        // 4. ERROR: Notificar FRACASO por correo antes de romper
+        emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), keyS3);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error en la ejecución: " + e.getMessage());
+    }
     }
     
 
