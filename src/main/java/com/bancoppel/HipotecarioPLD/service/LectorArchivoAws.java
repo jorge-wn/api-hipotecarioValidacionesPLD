@@ -12,6 +12,7 @@ import com.bancoppel.HipotecarioPLD.dto.SubirRequestDTOAws;
 import com.bancoppel.HipotecarioPLD.Util.sanitizeLog;
 import com.bancoppel.HipotecarioPLD.config.configManager;
 import com.bancoppel.HipotecarioPLD.constants.MessagesError;
+import com.bancoppel.HipotecarioPLD.controller.FileController;
 import com.bancoppel.HipotecarioPLD.dto.BitacoraDTO;
 import com.bancoppel.HipotecarioPLD.dto.BitacoraDetalleDTO;
 import com.bancoppel.HipotecarioPLD.dto.LambdaRequestDTOAws;
@@ -79,6 +80,8 @@ public class LectorArchivoAws {
     private final WebServiceClient webServiceClient;
     private final BigQueryService bigQueryService;
     private final ExternaServiceApache externaServiceApache;
+    private final FileController filecontroller;
+
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(LectorArchivoAws.class);
     private static final List<String> resumenArchivos = Collections.synchronizedList(new ArrayList<>());
@@ -304,9 +307,10 @@ public class LectorArchivoAws {
                     	String lineaSeguro = sanitizeLog.sanitizeForLog(linea);
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERROR, lineaSeguro);
                         lineaConRespuesta = linea + "|9|9|9|I";
-                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");
-                   
-                        try {
+                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");  
+                   filecontroller.CodigoEstatusEstructuraMalfomada = true;
+                
+                   try {
                         	SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",   String.valueOf(numeroLinea), LocalDateTime.now());
                      s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");
                         }
@@ -598,6 +602,7 @@ try {
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERRORSIC, lineaSeguro);
                         lineaConRespuesta = linea1 + "|9";
                         s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error Caracteres Especiales");
+                        filecontroller.CodigoEstatusEstructuraMalfomada = true;
                         log.debug(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
                        
                         try {
