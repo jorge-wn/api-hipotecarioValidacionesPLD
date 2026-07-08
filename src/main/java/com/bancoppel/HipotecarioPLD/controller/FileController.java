@@ -33,7 +33,8 @@ public class FileController {
     private final EmailNotificacionService emailNotificacionService;
     private final S3ArchivoService s3archivoservice;
     private final Currentyearmonth currentyearmonth;
-    private final LectorArchivoAws lectorarchivoaws;
+    //private final LectorArchivoAws lectorarchivoaws;
+    private final EstadoProcesoAws estadoProcesoAws;
 //    public static boolean CodigoEstatusEstructuraMalfomada;
     
     
@@ -46,7 +47,7 @@ public class FileController {
             configManager config,
             EmailNotificacionService emailNotificacionService,
             S3ArchivoService s3archivoservice,
-            LectorArchivoAws lectorarchivoaws
+            EstadoProcesoAws estadoProcesoAws
           
     ) throws Exception {
     	this.currentyearmonth = currentyearmonth;
@@ -55,7 +56,7 @@ public class FileController {
         this.lambdaService = lambdaService;
         this.emailNotificacionService = emailNotificacionService;
         this.s3archivoservice = s3archivoservice;
-        this.lectorarchivoaws =lectorarchivoaws;
+        this.estadoProcesoAws = estadoProcesoAws;
         
     }
  
@@ -64,7 +65,9 @@ public class FileController {
     public ResponseEntity<String> ejecutarPLD() {
   //FileController.CodigoEstatusEstructuraMalfomada = false;
 
-    	s3archivoservice.limpiarResumen();
+  
+  s3archivoservice.limpiarResumen();
+
     	resultadoServiceAws.reiniciarContador();
         List<CompletableFuture<Void>> procesos = new ArrayList<>();
 
@@ -90,13 +93,13 @@ public class FileController {
      
       String resumen = s3archivoservice.guardarResumenTXT(keyS3);
         
-      if (resultadoServiceAws.tieneErrores()) { 
-            emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.PARTIAL_CONTENT.value()), keyS3);
-            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(resumen);
-        }
+      log.info("============== VALIDANDO ESTATUS FINAL ==============");
+log.info("resultadoServiceAws.tieneErrores() = {}", resultadoServiceAws.tieneErrores());
+log.info("estadoProcesoAws.tieneErrorEstructura() = {}", estadoProcesoAws.tieneErrorEstructura());
  
-if (resultadoServiceAws.tieneErrorEstructura()) {
-    System.out.println("Tiene error de estructura: " + resultadoServiceAws.tieneErrorEstructura());
+      // Primero revisar errores de estructura
+if (estadoProcesoAws.tieneErrorEstructura()) {
+    log.warn("El procesamiento terminó con errores de estructura.");
     emailNotificacionService.enviarNotificacion(
             String.valueOf(HttpStatus.BAD_REQUEST.value()),
             keyS3);
@@ -104,6 +107,15 @@ if (resultadoServiceAws.tieneErrorEstructura()) {
             .status(HttpStatus.BAD_REQUEST)
             .body(resumen);
 }
+      if (resultadoServiceAws.tieneErrores()) { 
+            emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.PARTIAL_CONTENT.value()), keyS3);
+            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(resumen);
+        }
+ 
+
+log.warn(">>> ENTRÓ AL FLUJO OK (200)");
+
+
 
 // Ya no necesitas el 'else' porque el 'return' de arriba corta el flujo
 emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.OK.value()), keyS3);

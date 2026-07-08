@@ -56,6 +56,10 @@ if (!configmanager.isCertificado()) {
  
     public void enviarNotificacion(String codigoEstatus,String rutaS3Adjunto) {    
     	try {
+    log.info("======================================");
+    log.info("CODIGO QUE SE ENVIA AL SERVICIO: {}", codigoEstatus);
+    log.info("RUTA S3: {}", rutaS3Adjunto);
+    log.info("======================================");
     	EmailRequest request = new EmailRequest(config.getOrigen(),codigoEstatus,rutaS3Adjunto);
  
          webClient.post()

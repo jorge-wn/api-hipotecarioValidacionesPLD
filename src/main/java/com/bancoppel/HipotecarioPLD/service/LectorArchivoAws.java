@@ -80,7 +80,7 @@ public class LectorArchivoAws {
     private final WebServiceClient webServiceClient;
     private final BigQueryService bigQueryService;
     private final ExternaServiceApache externaServiceApache;
-    
+    private final EstadoProcesoAws estadoProcesoAws;
 
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(LectorArchivoAws.class);
@@ -96,7 +96,7 @@ public class LectorArchivoAws {
     // Definir el tamaño del pool de hilos para el procesamiento de líneas
     private final ExecutorService lineProcessingExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
    	private static final Path BASE_DIR = Paths.get("/tmp/hipotecario").toAbsolutePath().normalize();
-    private final ResultadoServiceAws resultadoServiceAws;
+
   
     
 
@@ -309,7 +309,7 @@ public class LectorArchivoAws {
                         lineaConRespuesta = linea + "|9|9|9|I";
                      s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");  
                   erroresEstructura.incrementAndGet();
-                
+                 estadoProcesoAws.registrarErrorEstructura();
                    try {
                         	SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",   String.valueOf(numeroLinea), LocalDateTime.now());
                      s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");
@@ -605,7 +605,7 @@ try {
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERRORSIC, lineaSeguro);
                         lineaConRespuesta = linea1 + "|9";
                         s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error Caracteres Especiales");
-                    
+
 
                         log.debug(nuevoNombreArchivo,Integer.parseInt(linea),"Error Caracteres Especiales");
                        
@@ -618,6 +618,7 @@ try {
 					    }           
                         registrosConErrorLocal.incrementAndGet();
                             erroresEstructura.incrementAndGet();
+                             estadoProcesoAws.registrarErrorEstructura();
                         lineasProcesadasSincronizadas.add(lineaConRespuesta);
                         return lineaConRespuesta;
                     }               	
@@ -779,9 +780,10 @@ try {
             futures.add(lineProcessingExecutor.submit(() -> {
                 Matcher matcher = pattern.matcher(linea);
                 if (!matcher.matches()) {
-                    errores.incrementAndGet();
-                    resultadoServiceAws.registrarErrorEstructura();
-
+              
+                     
+                    estadoProcesoAws.registrarErrorEstructura();
+                          errores.incrementAndGet();
                     try {
                     SaveBitacoraDetalle(nombreArchivo, "Error de Estructura", numLinea, LocalDateTime.now());
                    s3archivoservice.agregarDetalleError(nombreArchivo,Integer.parseInt(linea),"Error de estructura");

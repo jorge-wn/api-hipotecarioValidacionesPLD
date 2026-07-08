@@ -49,7 +49,8 @@ public class ResultadoServiceAws {
     private static final Pattern ARCHIVO_PERMITIDO =Pattern.compile("^[A-Za-z0-9._-]+\\.txt$");
     private final AtomicBoolean tieneErrores = new AtomicBoolean(false);
     private final ConcurrentMap<String, String> erroresProcesos = new ConcurrentHashMap<>();
-
+    //private final AtomicBoolean tieneErrorEstructura = new AtomicBoolean(false);
+    private final EstadoProcesoAws estadoProcesoAws;
 
 
     @Async
@@ -175,7 +176,6 @@ public class ResultadoServiceAws {
             } else {
                 lineasFinales.add(" | | | ");
             }
-
             
             String rutaDestino = normalizarRuta(rutaBase);
             String prefixDestinoCompleto = rutaDestino
@@ -191,8 +191,7 @@ public class ResultadoServiceAws {
             );
             
             log.info("Archivo vacío generado y subido correctamente: {}", nombreArchivo);
-            s3ArchivoService.agregarResumenArchivo("Archivo vacío generado y subido correctamente: " + nombreArchivo, 0, 0, 0);
-           
+            s3ArchivoService.agregarResumenArchivo("Archivo vacío generado y subido correctamente: " + nombreArchivo, 0, 0, 0);        
             
         } catch (Exception e) {
             log.error("Error generando archivo vacío", e);
@@ -228,6 +227,7 @@ public class ResultadoServiceAws {
 
          tieneErrores.set(false);
     erroresProcesos.clear();
+    estadoProcesoAws.limpiar();
     }
 
     public boolean todosCompletos() {
@@ -251,6 +251,14 @@ public boolean tieneErrores() {
 public Map<String, String> obtenerErrores() {
     return erroresProcesos;
 }
+
+/*public void registrarErrorEstructura() {
+    tieneErrorEstructura.set(true);
+}
+
+public boolean tieneErrorEstructura() {
+    return tieneErrorEstructura.get();
+}*/
 
 }
  
