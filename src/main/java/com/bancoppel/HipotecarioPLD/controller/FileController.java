@@ -34,7 +34,7 @@ public class FileController {
     private final S3ArchivoService s3archivoservice;
     private final Currentyearmonth currentyearmonth;
     private final LectorArchivoAws lectorarchivoaws;
-    public boolean CodigoEstatusEstructuraMalfomada = false;
+//    public static boolean CodigoEstatusEstructuraMalfomada;
     
     
     
@@ -62,6 +62,7 @@ public class FileController {
     //########################CAMBIOS AWS##################################
     @GetMapping("/PLDescarga")
     public ResponseEntity<String> ejecutarPLD() {
+  //FileController.CodigoEstatusEstructuraMalfomada = false;
 
     	s3archivoservice.limpiarResumen();
     	resultadoServiceAws.reiniciarContador();
@@ -93,15 +94,21 @@ public class FileController {
             emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.PARTIAL_CONTENT.value()), keyS3);
             return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(resumen);
         }
-
-        if (CodigoEstatusEstructuraMalfomada == true) {            
-            emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.BAD_REQUEST.value()), keyS3);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resumen);
-        }else
-  {
-      emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.OK.value()),keyS3);
-      log.info("Culmino el proceso de validación PLD/Puntualidad Coppel");
+ 
+if (resultadoServiceAws.tieneErrorEstructura()) {
+    System.out.println("Tiene error de estructura: " + resultadoServiceAws.tieneErrorEstructura());
+    emailNotificacionService.enviarNotificacion(
+            String.valueOf(HttpStatus.BAD_REQUEST.value()),
+            keyS3);
+    return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(resumen);
 }
+
+// Ya no necesitas el 'else' porque el 'return' de arriba corta el flujo
+emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.OK.value()), keyS3);
+log.info("Culmino el proceso de validación PLD/Puntualidad Coppel");
+
       return ResponseEntity.ok(resumen);    
 
      } catch (InterruptedException e) {
