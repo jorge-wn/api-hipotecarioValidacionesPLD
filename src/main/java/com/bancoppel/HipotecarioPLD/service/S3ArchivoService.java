@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -357,15 +358,23 @@ public class S3ArchivoService {
     resumen.append("Total registros: ").append(total).append("\n");
     resumen.append("Procesados OK: ").append(ok).append("\n");
     resumen.append("Con error: ").append(errores).append("\n");
-   List<String> erroresArchivo = detalleErrores.remove(nombreArchivo);
+ //  List<String> erroresArchivo = detalleErrores.remove(nombreArchivo);
+List<String> erroresArchivo = detalleErrores.get(nombreArchivo);
+    if (erroresArchivo != null) {
 
-   if (erroresArchivo != null) {
-    for (String error : erroresArchivo) {
-        resumen.append(error).append("\n");
+        erroresArchivo.sort(Comparator.comparingInt(s -> {
+            String numero = s.replaceAll("[^0-9]", "");
+            return Integer.parseInt(numero);
+        }));
+
+        for(String error : erroresArchivo){
+            resumen.append(error).append("\n");
+        }
     }
-}
+
     resumen.append("=====================================\n");
     resumenArchivos.add(resumen.toString());
+     detalleErrores.remove(nombreArchivo);
 }
     
     public String guardarResumenTXT(String keyS3) {

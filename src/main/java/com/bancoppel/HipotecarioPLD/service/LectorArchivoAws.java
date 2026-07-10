@@ -263,7 +263,6 @@ public class LectorArchivoAws {
             } catch (IOException e) {
                 log.warn("No fue posible eliminar el archivo temporal: {}", archivoLocal);
             }
-
             MDC.clear();
         }
     }
@@ -307,8 +306,10 @@ public class LectorArchivoAws {
                     	String lineaSeguro = sanitizeLog.sanitizeForLog(linea);
                         log.warn("LOG: {}: {}",MessagesError.LINEACONERROR, lineaSeguro);
                         lineaConRespuesta = linea + "|9|9|9|I";
-                     s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");  
-                  erroresEstructura.incrementAndGet();
+                    // s3archivoservice.agregarDetalleError(nuevoNombreArchivo,Integer.parseInt(linea1),"Error Caracteres Especiales");  
+                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error Caracteres Especiales");
+
+                     erroresEstructura.incrementAndGet();
                  estadoProcesoAws.registrarErrorEstructura();
                    try {
                         	SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",   String.valueOf(numeroLinea), LocalDateTime.now());
@@ -611,7 +612,7 @@ try {
                        
                         try {
                         SaveBitacoraDetalle(nombreArchivo, "Error Caracteres Especiales",  String.valueOf(numeroLinea), LocalDateTime.now());
-                        s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error Caracteres Especiales");
+                      //  s3archivoservice.agregarDetalleError(nuevoNombreArchivo,numeroLinea,"Error Caracteres Especiales");
                         }
                         catch (Exception e) {
 							log.error("Error al guardar bitacora detalle:"+ e.getMessage());					

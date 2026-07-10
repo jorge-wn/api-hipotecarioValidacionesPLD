@@ -103,13 +103,12 @@ if (estadoProcesoAws.tieneErrorEstructura()) {
     emailNotificacionService.enviarNotificacion(
             String.valueOf(HttpStatus.BAD_REQUEST.value()),
             keyS3);
-    return ResponseEntity
-            .status(HttpStatus.BAD_REQUEST)
-            .body(resumen);
+     return ResponseEntity.ok(resumen);
 }
       if (resultadoServiceAws.tieneErrores()) { 
             emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.PARTIAL_CONTENT.value()), keyS3);
-            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(resumen);
+            //return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).body(resumen);
+              return ResponseEntity.ok(resumen);
         }
  
 
