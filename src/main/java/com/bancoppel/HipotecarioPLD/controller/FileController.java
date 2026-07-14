@@ -132,7 +132,9 @@ log.info("Culmino el proceso de validación PLD/Puntualidad Coppel");
         log.error("Error crítico en el procesamiento PLD", e);
         // 4. ERROR: Notificar FRACASO por correo antes de romper
         emailNotificacionService.enviarNotificacion(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), keyS3);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error en la ejecución: " + e.getMessage());
+        //return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error en la ejecución: " + e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ocurrió un error interno al ejecutar el proceso ");
+        
     }
     }
     
